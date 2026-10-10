@@ -1,0 +1,1307 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="洋流">
+<meta name="theme-color" content="#aed6e6">
+<title>洋流 2026/11/28</title>
+<!-- What a chat shows of a link to this page: the date and the name over the picture.
+     The summary is one blank letter (U+3164), since a preview with no summary to hand
+     makes one out of the page's own words, which are the labels on the dial. The plain
+     description is what stands there for a reader that will not take a blank. -->
+<meta property="og:title" content="11/28 洋流">
+<meta property="og:description" content="ㅤ">
+<meta property="og:image" content="https://humanhighway.github.io/ocean-currents/icon-512.png">
+<meta name="description" content="洋流 2026/11/28">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  html { background: #aed6e6; }
+  /* The sheet is pressed to put the dial away and bring it back, so a touch on it must
+     not flash grey, and two in a row must not be taken for a zoom. */
+  canvas {
+    display: block; width: 100%; height: 100%;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  #dial, dialog {
+    font: 500 13px/1 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
+    white-space: nowrap;
+  }
+  /* The dial is two capsules side by side at the foot of the page: the hours to choose
+     from, and the tools, which are the wallpaper button and the one that puts the page on
+     the home screen. Every button is one height and sits one rim in from its capsule, so
+     each corner is the same curve as the one around it, set in by the same amount. */
+  :root { --tall: 30px; --rim: 4px; }
+  #dial {
+    position: fixed; left: 0; right: 0; bottom: max(18px, env(safe-area-inset-bottom)); width: fit-content; margin: 0 auto;
+    display: flex; align-items: center; gap: 8px;
+    opacity: 0; pointer-events: none; transition: opacity 0.4s;
+  }
+  #dial.awake { opacity: 1; pointer-events: auto; }
+  #dial button, dialog button {
+    all: unset; border-radius: 999px; color: #f8f6ee; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #dial button:focus-visible { outline: 2px solid #f8f6ee; outline-offset: -2px; }
+  #hours, #tools, #kinds {
+    position: relative; box-sizing: border-box; display: flex; gap: 2px;
+    height: calc(var(--tall) + 2 * var(--rim)); padding: var(--rim); border-radius: 999px; background: #1d2026;
+  }
+  #hours button, #kinds button {
+    position: relative; display: flex; align-items: center; height: var(--tall); padding: 0 12px;
+    transition: color 0.25s;
+  }
+  #hours button[aria-pressed="true"], #kinds button[aria-pressed="true"] { color: #1d2026; }
+  /* The slip of yellow under the pressed choice. It slides only once its row has been
+     set out, so that it is already in its place when the row first appears. */
+  #hours i, #kinds i {
+    position: absolute; left: 0; top: 0; height: var(--tall); border-radius: 999px; background: #f2d32c;
+  }
+  #hours.set i, #proof.set #kinds i {
+    transition: transform 0.35s cubic-bezier(0.3, 0.7, 0.2, 1), width 0.35s cubic-bezier(0.3, 0.7, 0.2, 1), opacity 0.2s;
+  }
+  #hours time { max-width: 0; margin-left: 0; overflow: hidden; opacity: 0; font-variant-numeric: tabular-nums; }
+  #hours.set time { transition: max-width 0.3s ease, margin-left 0.3s ease, opacity 0.25s; }
+  #hours [aria-pressed="true"] time { max-width: 3.2em; margin-left: 0.45em; opacity: 1; }
+  #dial #tools button {
+    display: flex; align-items: center; gap: 6px; height: var(--tall); padding: 0 12px 0 8px;
+    transition: background-color 0.2s;
+  }
+  #dial #tools button[hidden] { display: none; }
+  #dial svg, dialog svg {
+    width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.3;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  @media (hover: hover) { #dial #tools button:hover { background: #2d313a; } }
+  /* The way to whose poster this is: the last of the tools, a mark with no word to it. */
+  #dial #tools #info { width: var(--tall); padding: 0; justify-content: center; }
+  dialog { border: 0; padding: 0; background: none; max-width: none; max-height: none; overflow: visible; color: #f8f6ee; }
+  dialog[open] { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  dialog::backdrop { background: rgb(29 32 38 / 0.92); }
+  dialog p { margin: 0; }
+  dialog form { display: flex; gap: 6px; }
+  dialog button { padding: 11px 20px; }
+  #save, #guide button { background: #f2d32c; color: #1d2026; }
+  dialog button:focus-visible { outline: 2px solid #f8f6ee; outline-offset: 2px; }
+  #kinds { background: #2d313a; }
+  #proof img { display: block; max-width: min(92vw, 880px); max-height: min(60vh, 620px); border-radius: 16px; }
+  #about { width: min(320px, 100vw - 48px); white-space: normal; }
+  #about:focus-visible { outline: none; }
+  #about ul { display: grid; gap: 10px; margin: 6px 0; padding: 0 0 0 1.2em; font-size: 13px; line-height: 1.6; }
+  #about a { color: #f2d32c; text-decoration: none; }
+  /* The three taps that put the page on an iPhone's home screen, numbered in the accent. */
+  #guide { width: min(300px, 100vw - 48px); white-space: normal; }
+  #guide ol { display: grid; gap: 14px; margin: 6px 0; padding: 0; list-style: none; counter-reset: tap; font-size: 15px; line-height: 1.5; }
+  #guide li { display: flex; align-items: center; gap: 12px; counter-increment: tap; }
+  #guide li::before {
+    content: counter(tap); flex: none; width: 26px; height: 26px; border-radius: 50%;
+    background: #f2d32c; color: #1d2026; font-size: 13px; line-height: 26px; text-align: center;
+  }
+  #guide svg { margin: 0 2px; vertical-align: -5px; }
+  #guide p:last-of-type { opacity: 0.7; text-align: center; }
+  @media (pointer: coarse) { :root { --tall: 36px; } #dial svg { width: 22px; height: 22px; } }
+  /* On a narrow screen the tools keep their pictures and drop their words, and the hours
+     close up by as much as it takes for the two capsules to stay on one line. */
+  @media (max-width: 600px) {
+    #dial #tools button, #dial #tools #info { width: 32px; padding: 0; justify-content: center; }
+    #dial #tools span { display: none; }
+    /* --fixed is what the dial measures with no room around the hours' words, and 8px to
+       either side of it: less when the home-screen button is not shown. */
+    #dial { --fixed: 350px; }
+    #dial:has(#home[hidden]) { --fixed: 312px; }
+    #hours button { padding: 0 clamp(1px, (100vw - var(--fixed)) / 12, 8px); }
+  }
+  @media (prefers-reduced-motion: reduce) { #dial, #dial * { transition: none !important; } }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<nav id="dial" aria-label="時間與桌布">
+  <div id="hours" role="group" aria-label="時間">
+    <i aria-hidden="true"></i>
+    <button type="button" data-time="clock">現在<time></time></button>
+    <button type="button" data-time="auto">縮時<time></time></button>
+    <button type="button" data-time="dawn">清晨</button>
+    <button type="button" data-time="day">白天</button>
+    <button type="button" data-time="dusk">黃昏</button>
+    <button type="button" data-time="night">夜晚</button>
+  </div>
+  <div id="tools">
+    <button type="button" id="keep" aria-label="桌布">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11.5M7 10.5l5 5 5-5M4.5 20.5h15"/></svg>
+      <span>桌布</span>
+    </button>
+    <button type="button" id="home" aria-label="加到主畫面" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4.6"/><path d="M12 8v8M8 12h8"/></svg>
+      <span>加到主畫面</span>
+    </button>
+    <button type="button" id="info" aria-label="聲明">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5.5M12 7.6v.2"/></svg>
+    </button>
+  </div>
+</nav>
+<dialog id="about" aria-labelledby="about-name" tabindex="-1">
+  <p id="about-name">聲明</p>
+  <ul>
+    <li>海報的設計（構圖、配色、標題字與「洋流 2026/11/28」字樣）屬於原作者 <a href="https://www.threads.com/@photochicken_72" target="_blank" rel="noopener">@photochicken_72</a>，非本人擁有。</li>
+    <li>這個頁面不營利：不收費、沒有廣告、不販售任何東西。</li>
+    <li>頁面提供的桌布只供個人裝置使用，請勿轉售或用於商業用途。</li>
+  </ul>
+  <form method="dialog">
+    <button>關閉</button>
+  </form>
+</dialog>
+<dialog id="proof" aria-labelledby="proof-name">
+  <p id="proof-name">桌布</p>
+  <div id="kinds" role="group" aria-label="螢幕">
+    <i aria-hidden="true"></i>
+    <button type="button" data-kind="phone">手機</button>
+    <button type="button" data-kind="tablet">平板</button>
+    <button type="button" data-kind="desktop">電腦</button>
+  </div>
+  <img alt="這一刻的桌布">
+  <form method="dialog">
+    <button type="button" id="save">儲存</button>
+    <button>關閉</button>
+  </form>
+</dialog>
+<dialog id="guide" aria-labelledby="guide-name">
+  <p id="guide-name">加到主畫面</p>
+  <ol>
+    <li><span>點瀏覽器的「分享」<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3.5M8 7l4-4 4 4M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1"/></svg>，沒看到就先點「⋯」</span></li>
+    <li>選「加入主畫面」</li>
+    <li>點「加入」</li>
+  </ol>
+  <p>之後從主畫面打開，就是全螢幕。</p>
+  <form method="dialog">
+    <button>知道了</button>
+  </form>
+</dialog>
+<script>
+'use strict';
+
+// A print that will not hold still. The sheet is the poster's: pale sea, orange ribbons
+// running down it, and beside each ribbon a band of white that breaks up into grain.
+// 洋流 and the date are overprinted in black, with the first drop of each water radical
+// left yellow.
+//
+// The ribbons are never drawn as shapes. For every pixel a fragment shader works out how
+// far a few trains of travelling waves have pushed the sheet sideways there, and reads the
+// stripes off the pushed position. The waves are long swells, so the ribbons bend in long
+// sweeps and run taut between them. Where the push piles up they crowd together and where
+// it thins out they spread, the way a swell bunches and stretches the water it passes
+// through; a ribbon keeps much the same weight all the while, and it is the sea between
+// them that opens and closes. On top of that each ribbon wanders and breathes in girth a
+// little on its own, and the white follows a moment behind, like foam dragged along by
+// the water that made it.
+//
+// Nor is their number fixed. Here and there a ribbon parts in two around an eye of sea,
+// and after a while it heals. Each such seam is a pair of points the stripes are wound
+// around, one turn each way: the pair opens from a single point and closes to one again,
+// so a ribbon is never cut, only led apart and back.
+//
+// The type is cut once on a 2D canvas at the canvas' own resolution and handed to the
+// shader as a texture, so it stays still and sharp while everything under it moves.
+//
+// And the sheet is printed in the light of an hour. Left alone the day goes round: the sea
+// warms and darkens into dusk, the type comes on like a sign once it is too dark to read,
+// the moon takes the sun's place on the water, and it all pales again at dawn. Nothing is
+// added on top for any of this. The same few inks are remixed, and the light keeps to the
+// water it falls on.
+const CONFIG = {
+  title: '洋流',
+  date: ['2026', '11/28'],
+  titleFont: '900 {px}px "Noto Sans TC", "Hiragino Sans", "PingFang TC", "Heiti TC", sans-serif',
+  dateFont: '800 expanded {px}px Archivo, "Helvetica Neue", Helvetica, Arial, sans-serif',
+  fontSheet: 'https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,800&family=Noto+Sans+TC:wght@900&display=swap&text=',
+  fontWait: 1500,         // ms before local faces stand in for web fonts that have not arrived
+  wideFrom: 1.3,          // width / height above which the two characters sit side by side
+
+  time: 'clock',          // 'clock' keeps the viewer's own time, 'auto' runs the day round, 0-24 holds an hour
+  startHour: 13,          // the hour an 'auto' day opens at
+  dayLength: 180,         // seconds an 'auto' day takes to go round
+  lampsOn: 19.1,          // the hour the type lights up
+  lampsOff: 5.3,          // the hour it goes dark again
+  awake: true,            // keep the screen from dimming and locking while the page is on show
+
+  water: 1,               // how far the sea is worked up as water, from 0 (flat ink) to 1
+  light: 1,               // how much light glitters on it at its brightest, from 0 (none) to 1
+  ink: '#1d2026',         // the type by day: multiplied over the sheet, so the ribbons read through it
+  lit: '#f7efd6',         // the type by night, lit like a sign: laid over the sheet, which still shows a little
+  accent: '#f2d32c',
+
+  maxPixelRatio: 3,
+  papers: {               // the screen a wallpaper of each kind is cut for when the page is not open on one:
+    phone: [440, 956, 3],     //   CSS px across and down, and the device px to one of them
+    tablet: [1032, 1376, 2],
+    desktop: [1920, 1080, 2],
+  },
+  paperCap: 16e6,         // device px a wallpaper may have at the most; a larger screen's is cut coarser
+  speed: 1.35,            // time scale of all motion
+  lean: -16,              // degrees the ribbons lean off vertical
+  period: 0.36,           // spacing of the ribbons at rest, in short sides of the canvas
+  breath: 0.1,            // how far that spacing slowly widens and narrows, as a share of itself
+  squeeze: 0.26,          // periods by which a passing wave crowds the ribbons together and apart
+  sway: 1,                // sideways travel of the ribbons; past ~2 they start to fold over
+  girth: 0.195,           // half width of a ribbon at rest, in periods
+  swell: 0.46,            // how far the girth breathes: from e^-swell to e^+swell times its rest
+  foamGirth: 0.17,        // half width of the solid part of the foam at rest, in periods
+  foamShift: 0.15,        // periods the foam sits to the right of its ribbon
+  foamLag: 0.6,           // seconds the foam trails behind its ribbon
+  spray: 0.12,            // periods over which the foam breaks up into grain
+  grain: 1.5,             // CSS px, size of one speck
+  tooth: 0.03,            // strength of the paper texture
+
+  seam: 0.46,             // short sides, half the length a parting of a ribbon grows to
+  taper: 0.7,             // how drawn out a seam's ends are; lower makes them blunter
+};
+
+// The inks the sheet is printed in at a few hours of the day, and the light on the water
+// then; between two hours they are mixed. `deep` is the sea in the lee of a ribbon and
+// `spark` the glitter. `sun` is where the sun or the moon stands along the far edge, from
+// -1 at the left to 1 at the right, and how wide a road it lays on the water. Noon is the
+// poster as printed. The foam is kept dark enough by night for the lit type to stand on.
+const HOURS = [
+  { at: 0,    sea: '#15224b', deep: '#0c1637', ribbon: '#b0421f', foam: '#6278b0', spark: '#e4ebff', light: 0.4,  sun: [0.15, 0.8] },
+  { at: 4.5,  sea: '#26386f', deep: '#1a2a5e', ribbon: '#ad431f', foam: '#6c80b6', spark: '#d5dcf6', light: 0.15, sun: [-0.35, 0.8] },
+  { at: 5.2,  sea: '#4a5596', deep: '#384283', ribbon: '#b84827', foam: '#868dc5', spark: '#fff1d6', light: 0,    sun: [0.6, 0.7] },
+  { at: 5.8,  sea: '#a79fd6', deep: '#8c84c9', ribbon: '#cf5236', foam: '#fde6e0', spark: '#fff1d6', light: 0.3,  sun: [0.6, 0.7] },
+  { at: 6.6,  sea: '#e2c5d9', deep: '#cba9d0', ribbon: '#dc592d', foam: '#fff3e8', spark: '#ffe3a3', light: 0.75, sun: [0.55, 0.7] },
+  { at: 8.5,  sea: '#bfe4ec', deep: '#9fd3e3', ribbon: '#d14f17', foam: '#fbfaf2', spark: '#ffffff', light: 0.9,  sun: [0.35, 1.1] },
+  { at: 12,   sea: '#aed6e6', deep: '#8fc5dd', ribbon: '#cb4a14', foam: '#f8f6ee', spark: '#f8f6ee', light: 1,    sun: [0, 2.2] },
+  { at: 15.5, sea: '#a8d0e2', deep: '#89bedb', ribbon: '#cb4a14', foam: '#f9f4e8', spark: '#fff7df', light: 0.95, sun: [-0.4, 1] },
+  { at: 17.4, sea: '#9dbaca', deep: '#7fa5bf', ribbon: '#c9431a', foam: '#ffe9c8', spark: '#ffd27a', light: 1,    sun: [-0.55, 0.75] },
+  { at: 18.4, sea: '#9b88be', deep: '#7f6cad', ribbon: '#de4f26', foam: '#ffcfbb', spark: '#ffb56e', light: 0.85, sun: [-0.6, 0.6] },
+  { at: 19.2, sea: '#47518f', deep: '#343d7a', ribbon: '#bd4420', foam: '#8a86c6', spark: '#e6dcff', light: 0.2,  sun: [-0.6, 0.6] },
+  { at: 19.9, sea: '#26346a', deep: '#1a2757', ribbon: '#b5421f', foam: '#7482ba', spark: '#e4ebff', light: 0,    sun: [0.45, 0.8] },
+  { at: 20.5, sea: '#1a2853', deep: '#101b40', ribbon: '#b0421f', foam: '#6278b0', spark: '#e4ebff', light: 0.3,  sun: [0.45, 0.8] },
+];
+const INKS = ['sea', 'deep', 'ribbon', 'foam', 'spark'];
+const NAMED = { dawn: 6.2, day: 12, dusk: 18.4, night: 23 };  // hours the dial can hold the day at
+
+const SEAMS = 5;          // partings alive at once, at most
+const SEAM = 56;          // where the seams start in the uniform block: 24 numbers, 8 inks
+const FRAME = SEAM + 4 * SEAMS;
+// Where in the uniform block the numbers that change from frame to frame are kept.
+const AT = { time: 2, period: 6, light: 19, lamp: 20, sun: 22, sea: 24, ribbon: 28, foam: 32, ink: 36, accent: 40, deep: 44, spark: 48, lit: 52 };
+
+const WGSL = /* wgsl */ `
+const TAU = 6.2831853;
+const SEAMS = ${SEAMS};
+const WELD = 0.43;        // periods a ribbon reaches towards the end of a seam; nearer 0.5 is sharper
+const HOLD = 0.75;        // how well a ribbon keeps its weight as the sheet stretches: 0 not at all
+
+struct Frame {
+  size: vec2f,            // canvas px
+  time: f32,
+  unit: f32,              // canvas px in one short side
+  lean: vec2f,            // cos, sin
+  period: f32,
+  sway: f32,
+  girth: f32,
+  swell: f32,
+  foam_girth: f32,
+  foam_shift: f32,
+  spray: f32,
+  lag: f32,
+  grain: f32,             // canvas px
+  tooth: f32,
+  squeeze: f32,
+  taper: f32,
+  water: f32,
+  light: f32,
+  lamp: f32,              // how far the type is lit, from 0 (dark ink) to 1 (a lit sign)
+  sun: vec2f,             // where the light stands along the far edge, and how wide its road
+  sea: vec4f,
+  ribbon: vec4f,
+  foam: vec4f,
+  ink: vec4f,
+  accent: vec4f,
+  deep: vec4f,
+  spark: vec4f,
+  lit: vec4f,
+  seams: array<vec4f, SEAMS>,   // lane, height, half length; the last is spare
+};
+@group(0) @binding(0) var<uniform> frame: Frame;
+@group(0) @binding(1) var type_sheet: texture_2d<f32>;
+
+@vertex
+fn vertex(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
+  let corner = vec2f(f32((i << 1u) & 2u), f32(i & 2u));
+  return vec4f(corner * 2.0 - 1.0, 0.0, 1.0);
+}
+
+fn hash11(n: f32) -> f32 {
+  var x = fract(n * 0.1031);
+  x *= x + 33.33;
+  x *= x + x;
+  return fract(x);
+}
+
+fn hash21(p: vec2f) -> f32 {
+  var p3 = fract(vec3f(p.x, p.y, p.x) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+// A wave whose crests lean forward, the way swell steepens as it runs.
+fn crest(phase: f32, steep: f32) -> f32 {
+  return sin(phase + steep * sin(phase + 0.9));
+}
+
+// How far the current has pushed the sheet sideways at q, in short sides. Two long swells
+// cross the ribbons on different slants and bend them in long sweeps, the first rising
+// and falling in surges; a faint ripple runs down them faster. A wave bends a ribbon by
+// its height times the square of how tightly it is packed, so a short wave puts kinks in
+// a line long before it moves it far. Here each wave bends the ribbons less than the one
+// before it, which is what keeps them taut.
+fn drift(q: vec2f, t: f32) -> f32 {
+  let surge = 1.0 + 0.25 * sin(0.9 * q.y - 0.17 * t + 0.6);
+  return surge * 0.200 * crest(dot(q, vec2f(0.9, 2.5)) - 0.38 * t, 0.22)
+       + 0.085 * sin(dot(q, vec2f(-1.0, 1.8)) - 0.24 * t + 1.7)
+       + 0.009 * sin(dot(q, vec2f(1.4, 5.4)) - 0.95 * t + 4.1);
+}
+
+// The slow bulge in girth that all the ribbons share. It crosses them on a slant.
+fn tide(q: vec2f, t: f32) -> f32 {
+  return sin(dot(q, vec2f(1.2, 1.9)) - 0.42 * t + 2.0);
+}
+
+// What one ribbon does on its own at height y. x is how far it strays from its lane, in
+// periods; y is how far its girth is from the rest, as a logarithm. It keeps the ribbons
+// from moving as one warped picture: each is a strand of its own in the same current.
+// These are long and slow too, so that a ribbon's two edges still run as a pair.
+fn strand(id: f32, y: f32, t: f32) -> vec2f {
+  let turn = TAU * vec4f(hash11(id + 3.0), hash11(id + 5.0), hash11(id), hash11(id + 7.0));
+  let s = sin(vec4f(2.1, 3.9, 2.6, 4.3) * y - vec4f(0.45, 0.9, 0.7, 1.2) * t + turn);
+  return vec2f(0.045 * s.x + 0.016 * s.y, 0.24 * s.z + 0.06 * s.w);
+}
+
+// Where q lies on the sheet at time t, seams aside. x counts ribbons across it, each one
+// centred on a whole number; y is the girth habit of the ribbons there. A ribbon's habits
+// are not looked up by its number alone, because at a seam a number has to change hands:
+// between two ribbons one's habits shade into the other's.
+fn sheet(q: vec2f, t: f32) -> vec2f {
+  let crowd = frame.squeeze * sin(1.9 * q.x + 0.5 * q.y - 0.21 * t + 2.3);
+  let rest = (q.x + frame.sway * drift(q, t)) / frame.period + crowd;
+  let id = floor(rest);
+  let own = mix(strand(id, q.y, t), strand(id + 1.0, q.y, t), smoothstep(0.2, 0.8, rest - id));
+  return vec2f(rest - own.x, own.y);
+}
+
+// How far the seams wind the count of ribbons at a point of the sheet. A seam is a pair of
+// points with the count wound once around each, in opposite senses. Between the two the
+// count is one up, which parts a ribbon in two around an eye of sea; past either end the
+// turns cancel and the ribbons run on as before.
+fn winding(lane: f32, y: f32) -> f32 {
+  var turns = 0.0;
+  for (var j = 0; j < SEAMS; j++) {
+    let seam = frame.seams[j];
+    if (seam.z > 0.0) {
+      let mid = vec2f(lane - seam.x, (y - seam.y) / frame.taper);
+      let half = vec2f(0.0, seam.z / frame.taper);
+      let low = mid - half;
+      let high = mid + half;
+      turns -= atan2(low.x, low.y) - atan2(high.x, high.y);
+    }
+  }
+  return turns / TAU;
+}
+
+// How far a ribbon reaches at a point of the sheet, to the right of its middle (x) and to
+// the left (y), given half its width away from any seam. A seam runs down the middle of a
+// ribbon, and each half turns one side to it. That side is fattened to WELD where the seam
+// ends, which is what brings the end to a point: any thinner and the ribbon would poke
+// into the opening instead. The far side keeps its line, and the winding alone leads it
+// out, so a ribbon forks without swelling.
+//
+// The answer is for the ribbon whose middle lies ahead of the point by this much of the
+// count: nothing for the ribbon the point is on, and more to ask after the next one over.
+fn girths(free: f32, lane: f32, y: f32, ahead: f32) -> vec2f {
+  var weld = vec2f(0.0);
+  for (var j = 0; j < SEAMS; j++) {
+    let seam = frame.seams[j];
+    if (seam.z > 0.0) {
+      let mid = vec2f(lane - seam.x, (y - seam.y) / frame.taper);
+      let half = vec2f(0.0, seam.z / frame.taper);
+      let low = mid - half;
+      let high = mid + half;
+      let faces = vec2f(step(mid.x + ahead, 0.0), step(0.0, mid.x + ahead));
+      weld += faces * smoothstep(0.0, 0.08, seam.z)
+            * (exp(-dot(low, low) / 0.35) + exp(-dot(high, high) / 0.35));
+    }
+  }
+  return mix(vec2f(free), max(vec2f(free), vec2f(WELD)), min(weld, vec2f(1.0)));
+}
+
+// Sunlight glittering on the water: a scatter of points of light, each fixed to its own
+// spot on the sheet and each flashing to its own time, swelling as it lights and shrinking
+// as it dies. A slower beat runs through them all downstream, so the flashing also passes
+// over the water in waves. w is the point of the sheet, size the spacing of the points,
+// light how much sun there is here (which decides how many are lit at once and how fully),
+// and fine how much of the sheet one pixel covers.
+fn glitter(w: vec2f, size: f32, light: f32, t: f32, fine: f32) -> f32 {
+  let cell = floor(w / size);
+  let h = vec4f(hash21(cell), hash21(cell + 17.0), hash21(cell + 43.0), hash21(cell + 71.0));
+  let centre = (cell + 0.3 + 0.4 * h.xy) * size;
+  let beat = 0.6 * sin(mix(3.0, 7.5, h.z) * t + TAU * h.w)
+           + 0.4 * sin(4.4 * t - dot(centre, vec2f(18.0, 64.0)));
+  let lit = smoothstep(mix(1.0, -0.55, light), 1.0, beat);
+  let grown = hash21(cell + 97.0);
+  let radius = size * (0.06 + 0.2 * grown * grown * grown) * sqrt(lit);
+  let away = (w - centre) / vec2f(1.0 + 0.8 * hash21(cell + 131.0), 1.0);
+  return clamp(0.5 + (radius - length(away)) / fine, 0.0, 1.0) * step(0.0001, lit);
+}
+
+@fragment
+fn fragment(@builtin(position) position: vec4f) -> @location(0) vec4f {
+  let px = position.xy;
+  let p = (px - 0.5 * frame.size) / frame.unit;
+  let q = vec2f(p.x * frame.lean.x - p.y * frame.lean.y, p.x * frame.lean.y + p.y * frame.lean.x);
+
+  // A ribbon is a band with a weight of its own, not a share of whatever room it is given.
+  // Where the waves crowd the ribbons or lean them over, the count runs faster across the
+  // paper, and there a ribbon is let take up more of it; where it runs slow, less. So the
+  // ribbons keep much the same weight while the sea between them opens and closes. The
+  // run is read off the sheet alone, which has no seams in it to jump at.
+  let now = sheet(q, frame.time);
+  let run = length(vec2f(dpdx(now.x), dpdy(now.x))) * frame.unit * frame.period;
+  let held = pow(clamp(run, 0.4, 2.5), HOLD);
+
+  // The ribbons, their edges a pixel soft. Their girth eases off as it nears the whole of
+  // the room there is. The slope of the count is read off its sine and cosine, because the
+  // count itself jumps by one along the middle of a seam.
+  let turns = winding(now.x, q.y);
+  let count = now.x + turns;
+  let wide = frame.girth * held * exp(frame.swell * (0.6 * tide(q, frame.time) + now.y));
+  let free = 0.44 - 0.08 * log(1.0 + exp((0.44 - wide) / 0.08));
+  let sides = girths(free, now.x, q.y, 0.0);
+  let off = count - round(count);
+  let hand = vec2f(cos(TAU * count), sin(TAU * count));
+  let slope = max(length(vec4f(dpdx(hand), dpdy(hand))) / TAU, 1e-6);
+  let edge_px = max(off - sides.x, -sides.y - off) / slope;
+  let ribbon = clamp(0.5 - edge_px, 0.0, 1.0);
+
+  // How finely the sheet is drawn here, for the glitter. Slopes can only be taken where
+  // every pixel takes them, so it is read before the pixels part ways below.
+  let wet = vec2f(now.x * frame.period, q.y);
+  let fine = max(fwidth(wet.x), fwidth(wet.y));
+
+  // The ribbons lie on top of everything, so under one there is nothing more to work
+  // out; nor is there any sea to work out under solid foam.
+  var color = frame.ribbon.rgb;
+  if (ribbon < 1.0) {
+    // The foam is the same sheet a moment earlier, so it hangs back on whichever side the
+    // ribbon has just left, and it is widest where its ribbon is thinnest. It is wound
+    // around the seams as they are now, so that it comes to a point where the ribbons do.
+    // Past its solid part it thins into specks fixed to the paper.
+    let then = frame.time - frame.lag;
+    let was = sheet(q, then);
+    let v = was.x + turns - frame.foam_shift * held;
+    let foam_swell = 0.6 * tide(q + vec2f(3.7, 1.3), then) - 0.6 * was.y;
+    let spray = frame.spray * held;
+    let foam_girth = min(frame.foam_girth * held * exp(frame.swell * foam_swell), 0.44 - spray);
+    let thinning = (abs(v - round(v)) - foam_girth) / spray;
+    let density = pow(clamp(1.0 - thinning, 0.0, 1.0), 1.7);
+    let foam = step(hash21(floor(px / frame.grain)), density - 0.0001);
+
+    color = frame.foam.rgb;
+    if (foam < 0.5) {
+      // The sea between the ribbons. It lies deeper in the lee of each ribbon, the side
+      // its foam is not on.
+      color = frame.sea.rgb;
+      if (frame.water > 0.0) {
+        let ahead = ceil(count) - count;
+        let lee = ahead - girths(free, now.x, q.y, ahead).y;
+        let depth = pow(1.0 - smoothstep(0.0, 0.34, lee), 1.6);
+        color = mix(color, frame.deep.rgb, frame.water * depth);
+      }
+      if (frame.water > 0.0 && frame.light > 0.0) {
+        // Where the light falls on the water. The sun, or by night the moon, stands beyond
+        // the far edge and lays a road of light across the sea towards it: narrow and
+        // bright far off, wide and thinning as it nears. Gusts cross the whole sea and
+        // brighten or dull it in passing, so the road is never the same for long and a
+        // little light strays off it.
+        let reach = 0.5 * frame.size / frame.unit;
+        let near_us = (p.y + reach.y) / (2.0 * reach.y);
+        let off_road = (p.x - mix(frame.sun.x, -0.6 * frame.sun.x, near_us) * reach.x)
+                     / (mix(0.28, 0.6, near_us) * frame.sun.y);
+        let road = mix(1.0, 0.65, near_us) * exp(-off_road * off_road);
+        let gust = 0.5 + 0.5 * sin(dot(q, vec2f(2.6, 1.4)) - 0.5 * frame.time
+                                   + 1.5 * sin(dot(q, vec2f(-1.3, 2.1)) + 0.23 * frame.time));
+        let sunlit = frame.light * clamp(road * (0.7 + 0.6 * gust) + 0.2 * gust * gust, 0.0, 1.0);
+
+        // The glitter rides the sheet, so it goes where the water goes: a fine scatter of
+        // points and, turned so the two never line up, a sparser scatter of larger ones.
+        let turned = vec2f(0.891 * wet.x - 0.454 * wet.y, 0.454 * wet.x + 0.891 * wet.y) + 3.7;
+        let glint = max(glitter(wet, 0.011, sunlit, frame.time, fine),
+                        glitter(turned, 0.021, sunlit, frame.time + 9.0, fine));
+        color = mix(color, frame.spark.rgb, glint);
+      }
+    }
+    color = mix(color, frame.ribbon.rgb, ribbon);
+  }
+  color *= 1.0 + frame.tooth * (hash21(px + 91.7) - 0.5);
+
+  // The type. By day it is dark ink printed over the sheet. By night it is lit, and the
+  // sheet under it shows through as a tint, so the ribbons can be read through it still.
+  let mark = textureLoad(type_sheet, vec2i(px), 0);
+  let printed = mix(color * frame.ink.rgb, mix(color, frame.lit.rgb, 0.9), frame.lamp);
+  color = mix(color, printed, mark.r);
+  color = mix(color, frame.accent.rgb, mark.g);
+  return vec4f(color, 1.0);
+}
+`;
+
+function rgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255, 1];
+}
+
+// An ink as lightness and two hues (OKLab), where two inks mix without going muddy half
+// way, and back again.
+function toLab(hex) {
+  const [r, g, b] = rgb(hex).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [
+    0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
+  ];
+}
+
+function fromLab([L, a, b]) {
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+  return [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+  ].map((c) => Math.min(1, Math.max(0, c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)));
+}
+
+const DAY = HOURS.map((hour) => {
+  const mixed = { ...hour };
+  for (const name of INKS) mixed[name] = toLab(hour[name]);
+  return mixed;
+});
+
+// The inks and the light at an hour of the day.
+function lightAt(hour) {
+  let i = DAY.length - 1;
+  while (DAY[i].at > hour) i--;
+  const a = DAY[i], b = DAY[(i + 1) % DAY.length];
+  const f = (hour - a.at) / ((b.at - a.at + 24) % 24);
+  const mixed = (x, y) => x + (y - x) * f;
+  const air = { light: mixed(a.light, b.light), sun: [mixed(a.sun[0], b.sun[0]), mixed(a.sun[1], b.sun[1])] };
+  for (const name of INKS) air[name] = fromLab(a[name].map((x, k) => mixed(x, b[name][k])));
+  return air;
+}
+
+// What has been asked for, by the config, the address or the dial, and where the sky has
+// got to in answering it. `from` and `ran` are the hour an 'auto' day set out at and the
+// seconds it has run since.
+const asked = { time: CONFIG.time };
+const sky = { hour: null, from: CONFIG.startHour, ran: 0, lamp: 0, lit: null, since: -Infinity };
+
+// Moves the sky on by dt seconds to the moment `now` (ms) and returns its inks and light.
+// A change of hour is not cut to: the day runs round to it the short way, quickly. The
+// type eases from dark to lit when its hour comes, and back again.
+function turnSky(now, dt) {
+  let want = asked.time;
+  if (want === 'auto') {
+    sky.ran += dt;
+    want = (sky.from + sky.ran * 24 / CONFIG.dayLength) % 24;
+  } else if (want === 'clock') {
+    const d = new Date();
+    want = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+  }
+  if (sky.hour === null) sky.hour = want;
+  const gap = (want - sky.hour + 36) % 24 - 12;
+  sky.hour = (sky.hour + gap * (1 - Math.exp(-dt / 0.9)) + 24) % 24;
+
+  const lit = sky.hour >= CONFIG.lampsOn || sky.hour < CONFIG.lampsOff;
+  if (lit !== sky.lit) {
+    sky.since = sky.lit === null ? -Infinity : now;
+    sky.lit = lit;
+  }
+  const passed = (now - sky.since) / 1000;
+  sky.lamp = lit ? ease(passed / 1.2) : 1 - ease(passed / 0.7);
+
+  return lightAt(sky.hour);
+}
+
+// The pressed button in a row is marked by a slip of yellow that slides from one to the
+// next. This lays the slip where the pressed button lies, whenever it is asked to and
+// whenever the row changes size, which the hours do while the time beside 現在 is coming
+// out or going in. Returns the asking.
+function slipUnder(row) {
+  const slip = row.querySelector('i');
+  const place = () => {
+    const on = row.querySelector('[aria-pressed="true"]');
+    slip.style.opacity = on ? 1 : 0;
+    if (!on) return;
+    slip.style.width = on.offsetWidth + 'px';
+    slip.style.transform = `translate(${on.offsetLeft}px, ${on.offsetTop}px)`;
+  };
+  new ResizeObserver(place).observe(row);
+  return place;
+}
+
+// The dial at the foot of the page. It is there from the start; a press anywhere off it
+// puts it away, and another brings it back. It lets the viewer hold the day at an hour or keep
+// it to their own clock. Each choice is a place of its own in the browser's history, with
+// an address that can be passed on as a link: ?time=night. So going back comes to the
+// choice before, and nothing is loaded again. The address also takes an hour from 0 to 24.
+function setDial() {
+  const dial = document.getElementById('dial');
+  // What the address asks for, or failing that what the config does.
+  const read = () => {
+    const time = new URLSearchParams(location.search).get('time');
+    if (time in NAMED) return NAMED[time];
+    if (time === 'auto' || time === 'clock') return time;
+    if (time !== null && Number.isFinite(Number(time))) return (Number(time) % 24 + 24) % 24;
+    return CONFIG.time;
+  };
+
+  // Two buttons carry a time, and the style sheet lets it be seen on whichever of them is
+  // pressed: the viewer's own on the one that keeps the day to their clock, and the hour
+  // the sky has got to on the one that runs the day round. That one goes by too fast to
+  // read to the minute, so it is told in tens.
+  const hours = document.getElementById('hours');
+  const [clock, lapse] = ['clock', 'auto'].map((name) => hours.querySelector('[data-time="' + name + '"] time'));
+  const tell = () => {
+    const stamp = (hour, minute) => String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+    const now = new Date();
+    const times = [[clock, stamp(now.getHours(), now.getMinutes())]];
+    if (sky.hour !== null) times.push([lapse, stamp(Math.floor(sky.hour), Math.floor(sky.hour % 1 * 6) * 10)]);
+    for (const [slot, text] of times) if (slot.textContent !== text) slot.textContent = text;
+  };
+  setInterval(tell, 250);
+
+  const place = slipUnder(hours);
+  const show = () => {
+    for (const button of hours.querySelectorAll('button')) {
+      const name = button.dataset.time;
+      button.setAttribute('aria-pressed', asked.time === (name in NAMED ? NAMED[name] : name));
+    }
+    tell();
+    place();
+  };
+  // Takes up a choice of time. A day set running sets out from the hour the sky is at.
+  const take = (time) => {
+    if (time === 'auto' && asked.time !== 'auto' && sky.hour !== null) { sky.from = sky.hour; sky.ran = 0; }
+    asked.time = time;
+    show();
+  };
+  dial.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-time]');
+    if (!button) return;
+    const name = button.dataset.time;
+    const time = name in NAMED ? NAMED[name] : name;
+    if (time === asked.time) return;
+    take(time);
+    try {
+      history.pushState(null, '', location.pathname + (time === CONFIG.time ? '' : '?time=' + name));
+    } catch { /* some pages may not write their address */ }
+  });
+  window.addEventListener('popstate', () => take(read()));
+  take(read());
+  dial.classList.add('awake');
+  requestAnimationFrame(() => hours.classList.add('set'));
+
+  // A press on the sheet puts the dial away or brings it back. The sheet listens for it
+  // itself: iOS sends a click only where the thing touched, or something around it short
+  // of the body, is listening for one, so a listener on the window never hears of a touch
+  // on the sheet. A key brings the dial back for whoever has no pointer, and Escape puts
+  // it away.
+  document.getElementById('stage').addEventListener('click', () => dial.classList.toggle('awake'));
+  window.addEventListener('keydown', (event) => {
+    if (document.querySelector('dialog[open]')) return;
+    dial.classList.toggle('awake', event.key !== 'Escape');
+  });
+}
+
+// What kind of screen the page is open on, and the screen a wallpaper of a kind is cut
+// for: this one if it is of that kind, or else the one in CONFIG. A phone's and a tablet's
+// are taken upright, however they are being held; a desktop's as it stands.
+function ownKind() {
+  if (Math.min(screen.width, screen.height) <= 500) return 'phone';
+  return matchMedia('(pointer: coarse)').matches ? 'tablet' : 'desktop';
+}
+function screenOf(kind) {
+  if (kind !== ownKind()) return CONFIG.papers[kind];
+  const ratio = window.devicePixelRatio || 1;
+  if (kind === 'desktop') return [screen.width, screen.height, ratio];
+  return [Math.min(screen.width, screen.height), Math.max(screen.width, screen.height), ratio];
+}
+
+// The wallpaper button and the proof it brings up: the sheet as it stood when the button
+// was pressed, pulled once more at the size of a screen, to be looked at before it is
+// kept. It is cut first for the kind of screen the page is open on, and then for a phone,
+// a tablet or a desktop as the viewer asks, always at that same moment. A touch screen
+// hands the picture to its share sheet, which is where it is saved to the photos; anything
+// else downloads it. `pulled(kind, same)` resolves to the picture.
+function setProof(pulled) {
+  const proof = document.getElementById('proof');
+  const picture = proof.querySelector('img');
+  const kinds = document.getElementById('kinds');
+  const place = slipUnder(kinds);
+  const stem = (CONFIG.title + '-' + CONFIG.date.join('-')).replace(/\//g, '-');
+  let file = null, busy = false;
+
+  const cut = async (kind, same) => {
+    if (busy) return;
+    busy = true;
+    const chosen = kinds.querySelector('[data-kind="' + kind + '"]');
+    for (const button of kinds.querySelectorAll('button')) button.setAttribute('aria-pressed', button === chosen);
+    place();
+    try {
+      file = new File([await pulled(kind, same)], stem + '-' + chosen.textContent + '.png', { type: 'image/png' });
+      const spent = picture.getAttribute('src');
+      picture.src = URL.createObjectURL(file);
+      await picture.decode();
+      if (spent) URL.revokeObjectURL(spent);
+    } catch (err) {
+      fail(err);
+    }
+    busy = false;
+  };
+  document.getElementById('keep').addEventListener('click', async () => {
+    await cut(ownKind(), false);
+    if (!file || proof.open) return;
+    proof.showModal();
+    place();
+    requestAnimationFrame(() => proof.classList.add('set'));
+  });
+  kinds.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (button) cut(button.dataset.kind, true);
+  });
+  document.getElementById('save').addEventListener('click', async () => {
+    if (matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] });
+        return proof.close();
+      } catch (err) {
+        if (err.name === 'AbortError') return;    // the viewer thought better of it
+      }
+    }
+    const link = document.createElement('a');
+    link.href = picture.src;
+    link.download = file.name;
+    link.click();
+    proof.close();
+  });
+  proof.addEventListener('click', (event) => { if (event.target === proof) proof.close(); });
+  proof.addEventListener('close', () => {
+    URL.revokeObjectURL(picture.src);
+    picture.removeAttribute('src');
+    proof.classList.remove('set');
+    file = null;
+  });
+}
+
+// The button that puts the page on the home screen, where it opens by itself with no
+// browser around it. Chrome and its kin hand the page an offer to make when the button is
+// pressed; an iPhone has no such thing, so there the button brings up the three taps that
+// do it by hand. The button stays away where neither can be done, and once the page is
+// already running by itself.
+function setHome() {
+  const home = document.getElementById('home');
+  const guide = document.getElementById('guide');
+  // A page opened as a file has no home screen to go on, and may not read its manifest.
+  if (location.protocol === 'file:') return;
+  document.head.append(Object.assign(document.createElement('link'), { rel: 'manifest', href: 'manifest.webmanifest' }));
+  if (matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone) return;
+  const apple = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let offer = null;
+  window.addEventListener('beforeinstallprompt', (event) => { offer = event; home.hidden = false; });
+  window.addEventListener('appinstalled', () => { home.hidden = true; });
+  if (!matchMedia('(pointer: coarse)').matches) {
+    home.querySelector('span').textContent = '安裝';
+    home.setAttribute('aria-label', '安裝');
+  }
+  home.hidden = !apple;
+  home.addEventListener('click', () => {
+    if (!offer) return guide.showModal();
+    offer.prompt();   // an offer can be made once; Chrome sends another if this one is turned down
+    offer = null;
+    home.hidden = true;
+  });
+  guide.addEventListener('click', (event) => { if (event.target === guide) guide.close(); });
+}
+
+// Tints what lies around the sheet in the sea of the hour: the page behind it, and the bar
+// a phone keeps across the top of a page that is on its home screen, which is flat colour
+// and takes it from the page. Looked at twice a second, which is as fast as a sea changes.
+const tint = { due: 0, ink: '' };
+function tintPage(now, sea) {
+  if (now < tint.due) return;
+  tint.due = now + 500;
+  const ink = '#' + sea.slice(0, 3).map((c) => Math.round(255 * c).toString(16).padStart(2, '0')).join('');
+  if (ink === tint.ink) return;
+  tint.ink = ink;
+  document.documentElement.style.backgroundColor = ink;
+  document.querySelector('meta[name="theme-color"]').content = ink;
+}
+
+// The mark in the corner opens a word on whose poster this is, and a press beside it
+// closes it again.
+function setAbout() {
+  const about = document.getElementById('about');
+  // A dialog hands its focus to the first thing in it that can take it, which here is the
+  // author's link, and a phone rings that in blue; the dialog takes the focus itself instead.
+  document.getElementById('info').addEventListener('click', () => { about.showModal(); about.focus(); });
+  about.addEventListener('click', (event) => { if (event.target === about) about.close(); });
+}
+
+// Keeps the screen from dimming and locking while the page is on show, where the browser
+// lets a page ask for that. The browser takes the lock back whenever the page is hidden,
+// so it is asked for again each time the page comes back, and at a touch in case it was
+// refused for want of one.
+function stayAwake() {
+  if (!CONFIG.awake || !('wakeLock' in navigator)) return;
+  let lock = null, asking = false;
+  const ask = async () => {
+    if (lock || asking || document.visibilityState !== 'visible') return;
+    asking = true;
+    try {
+      lock = await navigator.wakeLock.request('screen');
+      lock.addEventListener('release', () => { lock = null; });
+    } catch { /* refused, as it is on a phone that is saving power */ }
+    asking = false;
+  };
+  document.addEventListener('visibilitychange', ask);
+  window.addEventListener('pointerdown', ask);
+  ask();
+}
+
+function font(template, px) {
+  return template.replace('{px}', px);
+}
+
+// A number in 0..1 that is always the same for the same seam, life and question.
+function chance(j, life, n) {
+  const x = Math.sin(j * 127.1 + life * 311.7 + n * 74.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+// 0 below 0, 1 above 1, and an easy slope between.
+function ease(x) {
+  const c = Math.min(1, Math.max(0, x));
+  return c * c * (3 - 2 * c);
+}
+
+// How long seam j stays in one place, on the clock all motion runs to.
+function span(j) {
+  return 11 + 2.7 * j;
+}
+
+const berths = new Map(); // seam, life and width of sheet -> where it sat, worked out once
+
+// Where seam j sits for one of its lives, as the count of the ribbon it parts. Each seam
+// keeps to its own strip of lanes, but the strips meet, and two seams at work on one
+// ribbon tie it in a knot. So a seam gives way to every seam numbered below it: it tries
+// a few places for one that stays a ribbon and a half clear of wherever they sit during
+// this life, and failing that sits the life out, which is null.
+function berth(j, life, live, across) {
+  const key = j + ':' + life + ':' + across;
+  if (berths.has(key)) return berths.get(key);
+  const from = (life - 0.37 * j) * span(j), to = from + span(j);
+  let found = null;
+  for (let k = 0; k < 4 && found === null; k++) {
+    const lane = Math.round(((j + chance(j, life, 1 + 10 * k)) / live * 2 - 1) * across);
+    let clear = true;
+    for (let i = 0; i < j && clear; i++) {
+      const last = Math.floor(to / span(i) + 0.37 * i);
+      for (let l = Math.floor(from / span(i) + 0.37 * i); l <= last && clear; l++) {
+        const taken = berth(i, l, live, across);
+        clear = taken === null || Math.abs(taken - lane) >= 1.5;
+      }
+    }
+    if (clear) found = lane;
+  }
+  if (berths.size > 500) berths.clear();
+  berths.set(key, found);
+  return found;
+}
+
+// Writes where the ribbons part at time t: for each seam its lane, its height and half its
+// length. A seam opens from a point, rides downstream a while and closes to a point again,
+// and only then moves somewhere else, so nothing ever jumps. `across` is half the canvas
+// in periods and `down` half of it in short sides; the narrower the canvas, the fewer
+// seams are let live.
+function seamsAt(t, across, down, out, at) {
+  const live = Math.max(1, Math.min(SEAMS, Math.round(0.9 * across)));
+  const seams = [];
+  for (let j = 0; j < SEAMS; j++) {
+    const age = t / span(j) + 0.37 * j;
+    const life = Math.floor(age), p = age - life;
+    const lane = j < live ? berth(j, life, live, across) : null;
+    const awake = lane !== null;
+    const height = (2 * chance(j, life, 2) - 1) * 0.6 * down + 0.3 * (p - 0.5);
+    const open = Math.sin(Math.PI * Math.min(1, Math.max(0, (p - 0.14) / 0.72))) ** 2;
+    const half = awake ? CONFIG.seam * (0.5 + 0.5 * chance(j, life, 3)) * open : 0;
+    seams.push({ lane: awake ? lane : 0, height, half });
+  }
+
+  // A seam parts a ribbon cleanly only if it runs down the ribbon's middle, and the other
+  // seams have pushed that middle aside. So each seam is moved to where its ribbon now
+  // lies. Moving one pushes the rest, hence a few rounds.
+  const wound = (s, lane, y) => {
+    const a = lane - s.lane, c = (y - s.height) / CONFIG.taper, h = s.half / CONFIG.taper;
+    return (Math.atan2(a, c + h) - Math.atan2(a, c - h)) / (2 * Math.PI);
+  };
+  const meant = seams.map((s) => s.lane);
+  for (let round = 0; round < 3; round++) {
+    seams.forEach((s, j) => {
+      let pushed = 0;
+      seams.forEach((other, i) => { if (i !== j && other.half > 0) pushed += wound(other, s.lane, s.height); });
+      s.lane = meant[j] - pushed;
+    });
+  }
+  seams.forEach((s, j) => out.set([s.lane, s.height, s.half, 0], at + 4 * j));
+}
+
+// Resolves once the web faces can be drawn with, or have failed to load.
+function loadFonts() {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = CONFIG.fontSheet + encodeURIComponent(CONFIG.title + CONFIG.date.join(''));
+  const listed = new Promise((resolve) => { link.onload = resolve; link.onerror = resolve; });
+  document.head.append(link);
+  return listed
+    .then(() => Promise.all([
+      document.fonts.load(font(CONFIG.titleFont, 64), CONFIG.title),
+      document.fonts.load(font(CONFIG.dateFont, 64), CONFIG.date.join('')),
+    ]))
+    .catch(() => {});
+}
+
+const REF = 1200;         // px, type size at which a character is taken apart into strokes
+const REACH = 24;         // REF px around itself that each stroke lays claim to
+const drops = new Map();  // character -> the claim of its first drop, worked out once per face
+
+// Finds the first drop of a water radical: of the character's separate strokes, the one in
+// its top left corner. The drop all but touches the stroke beside it, so at reading sizes
+// the two blur into one. The character is therefore taken apart at REF, where the gap is
+// a few pixels wide, and each stroke then claims the empty pixels nearest to it. Returns
+// the drop's claim, or null for a face that welds the drop onto its neighbours.
+function findDrop(ch) {
+  const c = document.createElement('canvas');
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.font = font(CONFIG.titleFont, REF);
+  const m = g.measureText(ch);
+  const left = Math.ceil(m.actualBoundingBoxLeft) + REACH;
+  const top = Math.ceil(m.actualBoundingBoxAscent) + REACH;
+  const w = left + Math.ceil(m.actualBoundingBoxRight) + REACH;
+  const h = top + Math.ceil(m.actualBoundingBoxDescent) + REACH;
+  c.width = w; c.height = h;
+  g.font = font(CONFIG.titleFont, REF);
+  g.fillText(ch, left, top);
+  const { data } = g.getImageData(0, 0, w, h);
+
+  const owner = new Int32Array(w * h);    // the stroke each pixel belongs to, 0 = none
+  const ink = new Int32Array(w * h);      // inked pixels in the order they were reached
+  let strokes = 0, reached = 0, drop = 0, dropY = Infinity;
+  const visit = (j) => {
+    if (!owner[j] && data[j * 4 + 3] >= 128) { owner[j] = strokes; ink[reached++] = j; }
+  };
+  for (let start = 0; start < w * h; start++) {
+    if (owner[start] || data[start * 4 + 3] < 128) continue;
+    strokes++;
+    const from = reached;
+    let sumX = 0, sumY = 0;
+    visit(start);
+    for (let k = from; k < reached; k++) {
+      const i = ink[k], x = i % w;
+      sumX += x; sumY += (i - x) / w;
+      if (x > 0) visit(i - 1);
+      if (x < w - 1) visit(i + 1);
+      if (i >= w) visit(i - w);
+      if (i < w * (h - 1)) visit(i + w);
+    }
+    const cx = sumX / (reached - from), cy = sumY / (reached - from);
+    if (cx < w / 3 && cy < h / 3 && cy < dropY) { drop = strokes; dropY = cy; }
+  }
+  if (!drop) return null;
+
+  let rim = ink.subarray(0, reached);
+  for (let step = 0; step < REACH; step++) {
+    const next = [];
+    const claim = (i, j) => {
+      if (!owner[j]) { owner[j] = owner[i]; next.push(j); }
+    };
+    for (const i of rim) {
+      const x = i % w;
+      if (x > 0) claim(i, i - 1);
+      if (x < w - 1) claim(i, i + 1);
+      if (i >= w) claim(i, i - w);
+      if (i < w * (h - 1)) claim(i, i + w);
+    }
+    rim = next;
+  }
+  return { claim: owner.map((stroke) => stroke === drop), w, h, left, top };
+}
+
+function firstDrop(ch) {
+  if (!drops.has(ch)) drops.set(ch, findDrop(ch));
+  return drops.get(ch);
+}
+
+// Moves the part of a character that lies inside its first drop's claim from the red
+// channel to the green one. (ox, oy) is the character's origin in the image and scale
+// takes the image's px to REF px.
+function tintDrop({ width, height, data }, drop, scale, ox, oy) {
+  for (let y = 0; y < height; y++) {
+    const ry = Math.floor((y + 0.5 - oy) * scale) + drop.top;
+    if (ry < 0 || ry >= drop.h) continue;
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const rx = Math.floor((x + 0.5 - ox) * scale) + drop.left;
+      if (data[i + 3] && rx >= 0 && rx < drop.w && drop.claim[ry * drop.w + rx]) {
+        data[i + 1] = data[i];
+        data[i] = 0;
+      }
+    }
+  }
+}
+
+const sheet = document.createElement('canvas');     // the type, red = ink, green = accent
+const scratch = document.createElement('canvas');   // one character at a time
+
+// Sets one character with its ink centred on (cx, cy) and returns the ink's bounds. Given
+// the claim of its first drop, that drop is set as accent instead of ink.
+function setCharacter(ctx, ch, size, cx, cy, drop) {
+  const PAD = 2;
+  const one = scratch.getContext('2d', { willReadFrequently: true });
+  one.font = font(CONFIG.titleFont, size);
+  const m = one.measureText(ch);
+  const w = Math.ceil(m.actualBoundingBoxLeft + m.actualBoundingBoxRight) + 2 * PAD;
+  const h = Math.ceil(m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) + 2 * PAD;
+  const ox = PAD + m.actualBoundingBoxLeft, oy = PAD + m.actualBoundingBoxAscent;
+  scratch.width = w; scratch.height = h;
+  one.font = font(CONFIG.titleFont, size);
+  one.fillStyle = '#f00';
+  one.fillText(ch, ox, oy);
+  const image = one.getImageData(0, 0, w, h);
+  if (drop) tintDrop(image, drop, REF / size, ox, oy);
+  one.putImageData(image, 0, 0);
+  const x = Math.round(cx - w / 2), y = Math.round(cy - h / 2);
+  ctx.drawImage(scratch, x, y);
+  return { left: x + PAD, top: y + PAD, right: x + w - PAD, bottom: y + h - PAD };
+}
+
+// Sets the date flush left at (left, top), sized so its widest line is `width` across.
+function setDate(ctx, left, top, width) {
+  ctx.font = font(CONFIG.dateFont, 100);
+  const widest = Math.max(...CONFIG.date.map((line) => ctx.measureText(line).width));
+  ctx.font = font(CONFIG.dateFont, 100 * width / widest);
+  ctx.fillStyle = '#f00';
+  const cap = ctx.measureText('0').actualBoundingBoxAscent;
+  CONFIG.date.forEach((line, i) => ctx.fillText(line, left, top + cap * (1 + 1.2 * i)));
+}
+
+// Cuts the type for a W x H canvas. An upright sheet stacks the two characters a little
+// out of line, the way the poster does; a wide one sets them side by side. Either way the
+// date hangs off the top right of a character.
+function cutType(W, H, ready) {
+  sheet.width = W; sheet.height = H;
+  const ctx = sheet.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  if (!ready) return;
+  const [first, second] = CONFIG.title;
+  // One yellow drop out of two would read as a mistake, so it is both or neither.
+  let [dropA, dropB] = [firstDrop(first), firstDrop(second)];
+  if (!dropA || !dropB) dropA = dropB = null;
+  if (W / H > CONFIG.wideFrom) {
+    const S = Math.min(0.33 * W, 0.64 * H);
+    setCharacter(ctx, first, S, 0.5 * W - 0.785 * S, 0.5 * H - 0.05 * S, dropA);
+    const ink = setCharacter(ctx, second, S, 0.5 * W + 0.255 * S, 0.5 * H + 0.05 * S, dropB);
+    setDate(ctx, ink.right + 0.06 * S, ink.top + 0.1 * S, 0.48 * S);
+  } else {
+    const S = Math.min(0.54 * W, 0.42 * H);
+    const ink = setCharacter(ctx, first, S, 0.5 * W - 0.115 * S, 0.5 * H - 0.51 * S, dropA);
+    setCharacter(ctx, second, S, 0.5 * W + 0.115 * S, 0.5 * H + 0.51 * S, dropB);
+    const left = ink.right + 0.04 * S;
+    setDate(ctx, left, ink.top + 0.1 * S, Math.min(0.5 * S, 0.955 * W - left));
+  }
+}
+
+async function compile(device, code) {
+  const module = device.createShaderModule({ code });
+  const info = await module.getCompilationInfo();
+  const errors = info.messages.filter((m) => m.type === 'error');
+  if (errors.length) throw new Error(errors.map((m) => `${m.lineNum}:${m.linePos} ${m.message}`).join('\n'));
+  return module;
+}
+
+async function main() {
+  const canvas = document.getElementById('stage');
+  if (!navigator.gpu) throw new Error('WebGPU is not available in this browser.');
+  const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+  if (!adapter) throw new Error('WebGPU is not available on this device.');
+  const device = await adapter.requestDevice();
+  device.addEventListener('uncapturederror', (event) => fail(event.error));
+  const context = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  context.configure({ device, format, alphaMode: 'opaque' });
+
+  const module = await compile(device, WGSL);
+  const pipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module, entryPoint: 'vertex' },
+    fragment: { module, entryPoint: 'fragment', targets: [{ format }] },
+  });
+
+  let typeReady = false;    // the ribbons run from the first frame; the type joins them
+  let stale = true;         // the canvas size or the type has changed since the last layout
+  let page = null;          // the sheet on screen
+  let moment = null;        // the time, the air and the lamp the last frame was pulled in
+  let kept = null;          // the moment the last wallpaper was pulled at
+
+  // Makes ready a sheet of W x H px, `ratio` of them to a CSS px: the numbers the shader
+  // is given for it, the type cut to fit, and half its measure in periods across and in
+  // short sides down.
+  function lay(W, H, ratio) {
+    const lean = CONFIG.lean * Math.PI / 180;
+    const data = new Float32Array(FRAME);
+    data.set([
+      W, H, 0, Math.min(W, H),
+      Math.cos(lean), Math.sin(lean), CONFIG.period, CONFIG.sway,
+      CONFIG.girth, CONFIG.swell, CONFIG.foamGirth, CONFIG.foamShift,
+      CONFIG.spray, CONFIG.foamLag, CONFIG.grain * ratio, CONFIG.tooth,
+      CONFIG.squeeze, CONFIG.taper, CONFIG.water, CONFIG.light,
+    ]);
+    for (const name of ['ink', 'accent', 'lit']) data.set(rgb(CONFIG[name]), AT[name]);
+    const buffer = device.createBuffer({
+      size: data.byteLength,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+
+    cutType(W, H, typeReady);
+    const typeTex = device.createTexture({
+      size: [W, H],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    device.queue.copyExternalImageToTexture({ source: sheet }, { texture: typeTex }, [W, H]);
+    const group = device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer } },
+        { binding: 1, resource: typeTex.createView() },
+      ],
+    });
+    return { data, buffer, typeTex, group, across: W / Math.min(W, H) / 2 / CONFIG.period, down: H / Math.min(W, H) / 2 };
+  }
+
+  function scrap(leaf) {
+    leaf.typeTex.destroy();
+    leaf.buffer.destroy();
+  }
+
+  function layout() {
+    const ratio = Math.min(window.devicePixelRatio || 1, CONFIG.maxPixelRatio);
+    const limit = device.limits.maxTextureDimension2D;
+    const W = Math.max(1, Math.min(limit, Math.round(canvas.clientWidth * ratio)));
+    const H = Math.max(1, Math.min(limit, Math.round(canvas.clientHeight * ratio)));
+    canvas.width = W; canvas.height = H;
+    berths.clear();
+    if (page) scrap(page);
+    page = lay(W, H, ratio);
+  }
+
+  // Pulls one print of a sheet onto `view`, as it stood at a moment.
+  function pull(leaf, { t, air, lamp }, view) {
+    const { data } = leaf;
+    data[AT.time] = t;
+    data[AT.period] = CONFIG.period * (1 + CONFIG.breath * Math.sin(0.13 * t));
+    seamsAt(t, leaf.across, leaf.down, data, SEAM);
+    data[AT.light] = CONFIG.light * air.light;
+    data[AT.lamp] = lamp;
+    data.set(air.sun, AT.sun);
+    for (const name of INKS) data.set(air[name], AT[name]);
+    device.queue.writeBuffer(leaf.buffer, 0, data);
+
+    const encoder = device.createCommandEncoder();
+    const paint = encoder.beginRenderPass({
+      colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store' }],
+    });
+    paint.setPipeline(pipeline);
+    paint.setBindGroup(0, leaf.group);
+    paint.draw(3);
+    paint.end();
+    device.queue.submit([encoder.finish()]);
+  }
+
+  window.addEventListener('resize', () => { stale = true; });
+  const fonts = loadFonts();
+  const waited = new Promise((resolve) => setTimeout(resolve, CONFIG.fontWait));
+  const typed = Promise.race([fonts, waited]).then(() => { typeReady = true; stale = true; });
+  fonts.then(() => { drops.clear(); stale = true; });
+
+  // The sheet pulled once more for a kind of screen, as a PNG: as it stands now, or with
+  // `same` as it stood when the last one was pulled, so that a viewer trying one kind after
+  // another is shown one moment throughout.
+  async function wallpaper(kind, same) {
+    await typed;
+    if (!same || !kept) kept = moment;
+    const [w, h, dense] = screenOf(kind);
+    const ratio = Math.min(dense, Math.sqrt(CONFIG.paperCap / (w * h)), device.limits.maxTextureDimension2D / Math.max(w, h));
+    const still = document.createElement('canvas');
+    still.width = Math.round(w * ratio);
+    still.height = Math.round(h * ratio);
+    const press = still.getContext('webgpu');
+    press.configure({ device, format, alphaMode: 'opaque' });
+    const leaf = lay(still.width, still.height, ratio);
+    pull(leaf, kept, press.getCurrentTexture().createView());
+    scrap(leaf);
+    // A canvas keeps what was drawn on it only until the browser next paints, so it is read now.
+    const blob = await new Promise((resolve) => still.toBlob(resolve, 'image/png'));
+    press.unconfigure();
+    if (!blob) throw new Error('The wallpaper could not be read back from the canvas.');
+    return blob;
+  }
+
+  setDial();
+  setProof(wallpaper);
+  setHome();
+  setAbout();
+  stayAwake();
+  let last = null;          // when the frame before this one was drawn
+  function frame(now) {
+    if (stale) { layout(); stale = false; }
+    const air = turnSky(now, last === null ? 0 : Math.min(0.1, Math.max(0, (now - last) / 1000)));
+    last = now;
+    moment = { t: now / 1000 * CONFIG.speed, air, lamp: sky.lamp };
+    tintPage(now, air.sea);
+    pull(page, moment, context.getCurrentTexture().createView());
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+function fail(err) {
+  console.error(err);
+  const note = document.createElement('pre');
+  note.style.cssText = 'position:fixed;inset:0;margin:0;padding:24px;font:14px/1.5 ui-monospace,monospace;color:#333;white-space:pre-wrap';
+  note.textContent = `${err.message || err}\n\nServe this folder over http, e.g.  python3 -m http.server 5173`;
+  document.body.append(note);
+}
+
+main().catch(fail);
+</script>
+<!-- Counts a visit each time the page is loaded, and keeps no cookie. Choosing an hour
+     loads nothing, so it is not counted. -->
+<script data-goatcounter="https://humanhighway.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+</body>
+</html>
