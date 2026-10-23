@@ -78,6 +78,37 @@
   @media (hover: hover) { #dial #tools button:hover { background: #2d313a; } }
   /* The way to whose poster this is: the last of the tools, a mark with no word to it. */
   #dial #tools #info { width: var(--tall); padding: 0; justify-content: center; }
+  /* The top right corner of the sheet, folded down as a dog-ear on the other poster lying
+     under it, which moves there as it does on its own page; a press on it goes there. It
+     comes down a moment after the page opens, lifts a little more under a pointer, and goes
+     for good after a while, or sooner with the dial the first time it is put away. --k
+     is how far it is folded, as a share of --rest: the poster under it is cut to the
+     triangle the fold leaves, and the flap, the back of the paper curling up off the sheet,
+     is drawn at --rest and scaled with it. The whole square round the corner takes a press. */
+  @property --k { syntax: '<number>'; inherits: true; initial-value: 0; }
+  #other {
+    --inset: max(env(safe-area-inset-top), env(safe-area-inset-right));
+    --rest: calc(30px + var(--inset));
+    position: fixed; top: 0; right: 0; width: calc(1.2 * var(--rest) + 10px); height: calc(1.2 * var(--rest) + 10px);
+    pointer-events: none; outline: none; -webkit-tap-highlight-color: transparent;
+    transition: --k 0.6s cubic-bezier(0.3, 0.7, 0.2, 1);
+  }
+  #other.rest { --k: 1; pointer-events: auto; }
+  #other.rest:focus-visible { --k: 1.2; }
+  @media (hover: hover) { #other.rest:hover { --k: 1.2; } }
+  #other.rest.gone { --k: 0; visibility: hidden; pointer-events: none; transition: --k 0.4s ease-in, visibility 0s 0.4s; }
+  #other .under { position: absolute; inset: 0; clip-path: polygon(calc(100% - var(--k) * var(--rest)) 0, 100% 0, 100% calc(var(--k) * var(--rest))); }
+  #other canvas { display: block; width: 100%; height: 100%; }
+  /* The shade the lifted paper casts along the fold. */
+  #other .under::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(225deg, transparent calc(0.7071 * var(--k) * var(--rest) - 7px), rgb(29 32 38 / 0.3) calc(0.7071 * var(--k) * var(--rest)));
+  }
+  #other .flap {
+    position: absolute; top: 0; right: 0; width: var(--rest); height: var(--rest); overflow: visible;
+    transform-origin: top right; transform: scale(var(--k)); filter: drop-shadow(-1px 2px 2px rgb(29 32 38 / 0.35));
+  }
+  @media (prefers-reduced-motion: reduce) { #other { transition: none !important; } }
   dialog { border: 0; padding: 0; background: none; max-width: none; max-height: none; overflow: visible; color: #f8f6ee; }
   dialog[open] { display: flex; flex-direction: column; align-items: center; gap: 16px; }
   dialog::backdrop { background: rgb(29 32 38 / 0.92); }
@@ -92,6 +123,12 @@
   #about:focus-visible { outline: none; }
   #about ul { display: grid; gap: 10px; margin: 6px 0; padding: 0 0 0 1.2em; font-size: 13px; line-height: 1.6; }
   #about a { color: #f2d32c; text-decoration: none; }
+  #by { font-size: 13px; opacity: 0.8; }
+  /* The two posters by name, in the titles' face: this one, and the other in its pink,
+     which leads to it, with a hand after it pointing back at it. */
+  #also { font: 900 15px/1 "Noto Sans TC", "PingFang TC", sans-serif; }
+  #also b { color: #f079b3; }
+  #also span { margin-left: 4px; }
   /* The three taps that put the page on an iPhone's home screen, numbered in the accent. */
   #guide { width: min(300px, 100vw - 48px); white-space: normal; }
   #guide ol { display: grid; gap: 14px; margin: 6px 0; padding: 0; list-style: none; counter-reset: tap; font-size: 15px; line-height: 1.5; }
@@ -143,6 +180,15 @@
     </button>
   </div>
 </nav>
+<a id="other" href="https://humanhighway.github.io/huiju/" aria-label="也來看看 慧聚">
+  <span class="under"><canvas></canvas></span>
+  <svg class="flap" viewBox="0 0 100 100" aria-hidden="true">
+    <linearGradient id="paper-back" gradientUnits="userSpaceOnUse" x1="50" y1="50" x2="5" y2="95">
+      <stop offset="0" stop-color="#cfc8b8"/><stop offset="0.4" stop-color="#f0ebe0"/><stop offset="0.85" stop-color="#fbf8f1"/><stop offset="1" stop-color="#e4ddcf"/>
+    </linearGradient>
+    <path d="M0 0Q2 52 9 91Q48 98 100 100Z" fill="url(#paper-back)"/>
+  </svg>
+</a>
 <dialog id="about" aria-labelledby="about-name" tabindex="-1">
   <p id="about-name">聲明</p>
   <ul>
@@ -150,6 +196,8 @@
     <li>這個頁面不營利：不收費、沒有廣告、不販售任何東西。</li>
     <li>頁面提供的桌布只供個人裝置使用，請勿轉售或用於商業用途。</li>
   </ul>
+  <p id="also">洋流<a href="https://humanhighway.github.io/huiju/"><b>慧聚</b><span aria-hidden="true">👈</span></a></p>
+  <p id="by">made by <a href="https://www.threads.com/@humanhighway" target="_blank" rel="noopener">@humanhighway</a></p>
   <form method="dialog">
     <button>關閉</button>
   </form>
@@ -226,6 +274,8 @@ const CONFIG = {
   lampsOn: 19.1,          // the hour the type lights up
   lampsOff: 5.3,          // the hour it goes dark again
   awake: true,            // keep the screen from dimming and locking while the page is on show
+  otherAfter: 1,          // seconds after opening that the corner folds down on 慧聚
+  otherFor: 10,           // seconds it stays before it goes for good
 
   water: 1,               // how far the sea is worked up as water, from 0 (flat ink) to 1
   light: 1,               // how much light glitters on it at its brightest, from 0 (none) to 1
@@ -862,6 +912,86 @@ function setAbout() {
   about.addEventListener('click', (event) => { if (event.target === about) about.close(); });
 }
 
+// The dog-ear on the other poster, 慧聚 (see #other in the style). It goes for good after
+// a while, or sooner with the dial the first time it is put away. Under it 慧聚 moves as it
+// does on its own page, drawn small: silver and gold stars streaming in past the corner
+// through a pale haze on the pink sheet, and others twinkling where they lie.
+function setOther() {
+  const other = document.getElementById('other');
+  const dial = document.getElementById('dial');
+  let ends = Infinity;
+  const go = () => {
+    if (other.classList.contains('gone')) return;
+    other.classList.add('gone');
+    ends = performance.now() + 500;
+    watch.disconnect();
+  };
+  const watch = new MutationObserver(() => { if (!dial.classList.contains('awake')) go(); });
+  watch.observe(dial, { attributes: true, attributeFilter: ['class'] });
+  setTimeout(() => other.classList.add('rest'), CONFIG.otherAfter * 1000);
+  setTimeout(go, (CONFIG.otherAfter + CONFIG.otherFor) * 1000);
+
+  // Lengths are in CSS px. The stream comes in from just past the corner along `way`, and
+  // `across` is square to it; a star is `along` it, and comes round again after REACH.
+  const sheet = other.querySelector('canvas');
+  const ctx = sheet.getContext('2d');
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const way = [-0.62, 0.78], across = [0.78, 0.62], REACH = 56;
+  const stars = Array.from({ length: 40 }, (_, i) => ({
+    flows: i < 30,
+    s: REACH * Math.random(),
+    off: (Math.random() + Math.random() + Math.random() - 1.5) * 6,     // how far off the stream's middle
+    x: Math.random(), y: Math.random(),                                 // where a scattered one lies, in sides
+    pace: 4 + 4 * Math.random(),                                        // px a second
+    r: Math.random() < 0.1 ? 1.3 + 0.4 * Math.random() : 0.4 + 0.7 * Math.random(),
+    gold: Math.random() < 0.3,
+    blink: 1.5 + 2.5 * Math.random(), phase: 2 * Math.PI * Math.random(),
+  }));
+  new ResizeObserver(() => {
+    const ratio = Math.min(window.devicePixelRatio || 1, 3);
+    sheet.width = Math.round(sheet.clientWidth * ratio);
+    sheet.height = Math.round(sheet.clientHeight * ratio);
+  }).observe(sheet);
+  const draw = (now) => {
+    if (now > ends) return;
+    requestAnimationFrame(draw);
+    if (!other.classList.contains('rest')) return;
+    const t = still ? 0 : now / 1000, S = sheet.clientWidth, from = [S + 6, -6];
+    ctx.setTransform(sheet.width / S, 0, 0, sheet.width / S, 0, 0);
+    ctx.fillStyle = '#f079b3';
+    ctx.fillRect(0, 0, S, S);
+    const haze = ctx.createLinearGradient(...[-10, 10].flatMap((k) => [from[0] + k * across[0], from[1] + k * across[1]]));
+    haze.addColorStop(0, 'rgba(255, 232, 242, 0)');
+    haze.addColorStop(0.5, 'rgba(255, 232, 242, 0.5)');
+    haze.addColorStop(1, 'rgba(255, 232, 242, 0)');
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, 0, S, S);
+    for (const star of stars) {
+      let x = star.x * S, y = star.y * S;
+      if (star.flows) {
+        const along = (star.s + t * star.pace) % REACH;
+        x = from[0] + along * way[0] + star.off * across[0];
+        y = from[1] + along * way[1] + star.off * across[1];
+      }
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(star.blink * t + star.phase);
+      ctx.fillStyle = ctx.strokeStyle = star.gold ? '#ffd862' : '#f4f3fc';
+      ctx.beginPath();
+      ctx.arc(x, y, star.r, 0, 2 * Math.PI);
+      ctx.fill();
+      if (star.r > 1.2) {
+        const reach = 2.5 * star.r;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x - reach, y); ctx.lineTo(x + reach, y);
+        ctx.moveTo(x, y - reach); ctx.lineTo(x, y + reach);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
+  requestAnimationFrame(draw);
+}
+
 // Keeps the screen from dimming and locking while the page is on show, where the browser
 // lets a page ask for that. The browser takes the lock back whenever the page is hidden,
 // so it is asked for again each time the page comes back, and at a touch in case it was
@@ -974,7 +1104,8 @@ function seamsAt(t, across, down, out, at) {
 function loadFonts() {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = CONFIG.fontSheet + encodeURIComponent(CONFIG.title + CONFIG.date.join(''));
+  // The other poster's name, in the 聲明, is set in the title's face too.
+  link.href = CONFIG.fontSheet + encodeURIComponent(CONFIG.title + CONFIG.date.join('') + document.querySelector('#also b').textContent);
   const listed = new Promise((resolve) => { link.onload = resolve; link.onerror = resolve; });
   document.head.append(link);
   return listed
@@ -1276,6 +1407,7 @@ async function main() {
   setProof(wallpaper);
   setHome();
   setAbout();
+  setOther();
   stayAwake();
   let last = null;          // when the frame before this one was drawn
   function frame(now) {
