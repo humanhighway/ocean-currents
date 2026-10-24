@@ -81,7 +81,8 @@
   /* The top right corner of the sheet, folded down as a dog-ear on the other poster lying
      under it, which moves there as it does on its own page; a press on it goes there. It
      comes down a moment after the page opens, lifts a little more under a pointer, and goes
-     for good after a while, or sooner with the dial the first time it is put away. --k
+     after a while, or sooner with the dial the first time it is put away; after that #nook,
+     the same square left empty, brings it back for a moment at a press. --k
      is how far it is folded, as a share of --rest: the poster under it is cut to the
      triangle the fold leaves, and the flap, the back of the paper curling up off the sheet,
      is drawn at --rest and scaled with it. The whole square round the corner takes a press. */
@@ -97,6 +98,11 @@
   #other.rest:focus-visible { --k: 1.2; }
   @media (hover: hover) { #other.rest:hover { --k: 1.2; } }
   #other.rest.gone { --k: 0; visibility: hidden; pointer-events: none; transition: --k 0.4s ease-in, visibility 0s 0.4s; }
+  #nook {
+    position: fixed; top: 0; right: 0; -webkit-tap-highlight-color: transparent;
+    width: calc(1.2 * (30px + max(env(safe-area-inset-top), env(safe-area-inset-right))) + 10px); aspect-ratio: 1;
+  }
+  #nook[hidden] { display: none; }
   #other .under { position: absolute; inset: 0; clip-path: polygon(calc(100% - var(--k) * var(--rest)) 0, 100% 0, 100% calc(var(--k) * var(--rest))); }
   #other canvas { display: block; width: 100%; height: 100%; }
   /* The shade the lifted paper casts along the fold. */
@@ -180,6 +186,7 @@
     </button>
   </div>
 </nav>
+<span id="nook" hidden></span>
 <a id="other" href="https://humanhighway.github.io/huiju/" aria-label="也來看看 慧聚">
   <span class="under"><canvas></canvas></span>
   <svg class="flap" viewBox="0 0 100 100" aria-hidden="true">
@@ -275,7 +282,8 @@ const CONFIG = {
   lampsOff: 5.3,          // the hour it goes dark again
   awake: true,            // keep the screen from dimming and locking while the page is on show
   otherAfter: 1,          // seconds after opening that the corner folds down on 慧聚
-  otherFor: 10,           // seconds it stays before it goes for good
+  otherFor: 10,           // seconds it stays before it goes
+  otherAgain: 5,          // seconds it stays when a press in the corner brings it back
 
   water: 1,               // how far the sea is worked up as water, from 0 (flat ink) to 1
   light: 1,               // how much light glitters on it at its brightest, from 0 (none) to 1
@@ -912,20 +920,35 @@ function setAbout() {
   about.addEventListener('click', (event) => { if (event.target === about) about.close(); });
 }
 
-// The dog-ear on the other poster, 慧聚 (see #other in the style). It goes for good after
-// a while, or sooner with the dial the first time it is put away. Under it 慧聚 moves as it
+// The dog-ear on the other poster, 慧聚 (see #other in the style). It goes after a while,
+// or sooner with the dial the first time it is put away; then a press in the corner brings it
+// back for a few seconds, or until a press anywhere else. Under it 慧聚 moves as it
 // does on its own page, drawn small: silver and gold stars streaming in past the corner
 // through a pale haze on the pink sheet, and others twinkling where they lie.
 function setOther() {
   const other = document.getElementById('other');
   const dial = document.getElementById('dial');
-  let ends = Infinity;
+  const nook = document.getElementById('nook');
+  let ends = Infinity, drawing = true, hush = 0;
   const go = () => {
     if (other.classList.contains('gone')) return;
+    clearTimeout(hush);
     other.classList.add('gone');
     ends = performance.now() + 500;
     watch.disconnect();
+    document.removeEventListener('pointerdown', away);
+    nook.hidden = false;
   };
+  const away = (event) => { if (!other.contains(event.target)) go(); };
+  nook.addEventListener('click', () => {
+    nook.hidden = true;
+    other.classList.remove('gone');
+    ends = Infinity;
+    if (!drawing) { drawing = true; requestAnimationFrame(draw); }
+    hush = setTimeout(go, CONFIG.otherAgain * 1000);
+    // Listened for once this press is over, so that it is not taken for one elsewhere.
+    setTimeout(() => document.addEventListener('pointerdown', away));
+  });
   const watch = new MutationObserver(() => { if (!dial.classList.contains('awake')) go(); });
   watch.observe(dial, { attributes: true, attributeFilter: ['class'] });
   setTimeout(() => other.classList.add('rest'), CONFIG.otherAfter * 1000);
@@ -953,7 +976,7 @@ function setOther() {
     sheet.height = Math.round(sheet.clientHeight * ratio);
   }).observe(sheet);
   const draw = (now) => {
-    if (now > ends) return;
+    if (now > ends) { drawing = false; return; }
     requestAnimationFrame(draw);
     if (!other.classList.contains('rest')) return;
     const t = still ? 0 : now / 1000, S = sheet.clientWidth, from = [S + 6, -6];
